@@ -175,12 +175,6 @@ contract Candidates {
         candidates[_participantNumber].votes++;
     }
 
-    function showCandidate(
-        uint8 _participantNumber
-    ) external view returns (Candidate memory) {
-        return (candidates[_participantNumber]);
-    }
-
     function addCandidate(
         uint8 _participantNumber,
         uint256 _identicalNumber,
@@ -217,13 +211,13 @@ contract Candidates {
         uint8 winnerIndex;
 
         for (uint8 i = 0; i < candidatesArr.length; i++) {
+            candidatesArr[i].votes = candidates[
+                candidatesArr[i].participantNumber
+            ].votes;
             if (candidatesArr[i].votes > votes) {
                 votes = candidatesArr[i].votes;
                 winnerIndex = i;
             }
-            candidatesArr[i].votes = candidates[
-                candidatesArr[i].participantNumber
-            ].votes;
         }
 
         emit CalculateVotes(candidatesArr);
