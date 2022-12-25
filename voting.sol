@@ -112,6 +112,10 @@ contract Voting {
         votersArr.push(Voter(_fullname, _identicalNumber, _age, true));
     }
 
+    function donateToContractOwner() public payable {
+        payable(owner).transfer(msg.value);
+    }
+
     receive() external payable {
         payable(owner).transfer(msg.value); //why not
     }
@@ -133,6 +137,9 @@ contract Candidates {
         string slogan;
         uint256 votes;
     }
+
+    event CalculateVotes(Candidate[]);
+    event WinnerCandidate(Candidate);
 
     modifier checkMaxCandidates() {
         require(candidatesArr.length < maxCandidates, "Too many candidates");
@@ -206,11 +213,21 @@ contract Candidates {
     }
 
     function calculateVotes() external isOwner {
-        for (uint i = 0; i < candidatesArr.length; i++) {
+        uint votes = 0;
+        uint8 winnerIndex;
+
+        for (uint8 i = 0; i < candidatesArr.length; i++) {
+            if (candidatesArr[i].votes > votes) {
+                votes = candidatesArr[i].votes;
+                winnerIndex = i;
+            }
             candidatesArr[i].votes = candidates[
                 candidatesArr[i].participantNumber
             ].votes;
         }
+
+        emit CalculateVotes(candidatesArr);
+        if (votes > 0) emit WinnerCandidate(candidatesArr[winnerIndex]);
     }
 
     receive() external payable {
