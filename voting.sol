@@ -13,11 +13,6 @@ contract Voting {
         uint8 age;
     }
 
-    modifier isOwner() {
-        require(msg.sender == owner, "You must be the Owner");
-        _;
-    }
-
     modifier is18(uint8 _age) {
         require(_age > 17, "The minimum age for voting is 18");
         _;
@@ -39,9 +34,7 @@ contract Voting {
         _;
     }
 
-    constructor() {
-        owner = msg.sender;
-    }
+    constructor() {}
 
     function viewAllVoters() public view returns (uint, Voter[] memory) {
         return (votersArr.length, votersArr);
@@ -66,6 +59,7 @@ contract Candidates {
     Candidate[] candidatesArr;
     uint8 maxCandidates = 10;
     address owner;
+    bool votingStatus;
 
     struct Candidate {
         uint8 participantNumber;
@@ -74,6 +68,8 @@ contract Candidates {
         string slogan;
         uint256 votes;
     }
+
+    event ChangeVotingStatus(bool votingStatus);
 
     modifier checkMaxCandidates() {
         require(candidatesArr.length < maxCandidates, "Too many candidates");
@@ -85,12 +81,36 @@ contract Candidates {
         _;
     }
 
+    modifier isVotingTrue() {
+        require(votingStatus, "Voting is already off");
+        _;
+    }
+
+    modifier isVotingFalse() {
+        require(!votingStatus, "Voting is already on");
+        _;
+    }
+
     constructor() {
         owner = msg.sender;
     }
 
     function showAllCanidates() public view returns (uint, Candidate[] memory) {
         return (candidatesArr.length, candidatesArr);
+    }
+
+    function checkVotingProcess() public view returns (bool) {
+        return votingStatus;
+    }
+
+    function startVotingProcess() external isOwner isVotingFalse {
+        votingStatus = true;
+        emit ChangeVotingStatus(votingStatus);
+    }
+
+    function stopVotingProcess() external isOwner isVotingTrue {
+        votingStatus = false;
+        emit ChangeVotingStatus(votingStatus);
     }
 
     function addCandidate(
