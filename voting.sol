@@ -6,11 +6,22 @@ contract Voting {
     mapping(address => Voter) voters;
     Voter[] votersArr;
     address private owner;
+    bool votingStatus;
+    address thisaddress = address(this);
+    Candidates candidatesContract;
 
     struct Voter {
         string fullname;
         string identicalNumber;
         uint8 age;
+        bool hasVote;
+    }
+
+    event ChangeVotingStatus(bool votingStatus);
+
+    modifier isOwner() {
+        require(msg.sender == owner, "You must be the Owner");
+        _;
     }
 
     modifier is18(uint8 _age) {
@@ -28,66 +39,32 @@ contract Voting {
 
     modifier isVoterNew(address _address) {
         require(
-            voters[_address].age == 0,
+            voters[_address].age == 0, //using age because i have only age validator
             "You have already registered as a voter"
         );
         _;
     }
 
-    constructor() {}
-
-    function viewAllVoters() public view returns (uint, Voter[] memory) {
-        return (votersArr.length, votersArr);
-    }
-
-    function registerAsVoter(
-        string calldata _fullname,
-        string calldata _identicalNumber,
-        uint8 _age
-    ) external isVoterNew(msg.sender) is18(_age) isZeroBalance {
-        voters[msg.sender] = Voter(_fullname, _identicalNumber, _age);
-        votersArr.push(Voter(_fullname, _identicalNumber, _age));
-    }
-
-    fallback() external payable {}
-
-    receive() external payable {}
-}
-
-contract Candidates {
-    mapping(uint8 => Candidate) candidates;
-    Candidate[] candidatesArr;
-    uint8 maxCandidates = 10;
-    address owner;
-    bool votingStatus;
-
-    struct Candidate {
-        uint8 participantNumber;
-        uint256 identicalNumber;
-        string fullname;
-        string slogan;
-        uint256 votes;
-    }
-
-    event ChangeVotingStatus(bool votingStatus);
-
-    modifier checkMaxCandidates() {
-        require(candidatesArr.length < maxCandidates, "Too many candidates");
+    modifier isVoterRegistered(address _address) {
+        require(
+            voters[_address].age > 0, //using age because i have only age validator
+            "First you have to registered as a voter"
+        );
         _;
     }
 
-    modifier isOwner() {
-        require(msg.sender == owner, "You must be the Owner");
+    modifier hasVote(address voterAdd) {
+        require(voters[voterAdd].hasVote, "You don't have a vote");
         _;
     }
 
     modifier isVotingTrue() {
-        require(votingStatus, "Voting is already off");
+        require(votingStatus, "Voting is off");
         _;
     }
 
     modifier isVotingFalse() {
-        require(!votingStatus, "Voting is already on");
+        require(!votingStatus, "Voting is on");
         _;
     }
 
@@ -95,8 +72,14 @@ contract Candidates {
         owner = msg.sender;
     }
 
-    function showAllCanidates() public view returns (uint, Candidate[] memory) {
-        return (candidatesArr.length, candidatesArr);
+    function addCandidatesContract(
+        Candidates _candidatesContract
+    ) public isOwner {
+        candidatesContract = _candidatesContract;
+    }
+
+    function viewAllVoters() public view returns (uint, Voter[] memory) {
+        return (votersArr.length, votersArr);
     }
 
     function checkVotingProcess() public view returns (bool) {
@@ -111,6 +94,84 @@ contract Candidates {
     function stopVotingProcess() external isOwner isVotingTrue {
         votingStatus = false;
         emit ChangeVotingStatus(votingStatus);
+    }
+
+    function vote(
+        uint8 _participantNumber
+    ) external isVoterRegistered(msg.sender) isVotingTrue hasVote(msg.sender) {
+        voters[msg.sender].hasVote = false; //don't update hasvote in array to avoid high gas
+        candidatesContract.updateCandidateVote(_participantNumber);
+    }
+
+    function registerAsVoter(
+        string calldata _fullname,
+        string calldata _identicalNumber,
+        uint8 _age
+    ) external isVoterNew(msg.sender) is18(_age) isZeroBalance {
+        voters[msg.sender] = Voter(_fullname, _identicalNumber, _age, true);
+        votersArr.push(Voter(_fullname, _identicalNumber, _age, true));
+    }
+
+    receive() external payable {
+        payable(owner).transfer(msg.value); //why not
+    }
+
+    fallback() external payable {}
+}
+
+contract Candidates {
+    mapping(uint8 => Candidate) candidates;
+    Candidate[] candidatesArr;
+    uint8 maxCandidates = 10;
+    address owner;
+    address votingAddress;
+
+    struct Candidate {
+        uint8 participantNumber;
+        uint256 identicalNumber;
+        string fullname;
+        string slogan;
+        uint256 votes;
+    }
+
+    modifier checkMaxCandidates() {
+        require(candidatesArr.length < maxCandidates, "Too many candidates");
+        _;
+    }
+
+    modifier isOwner() {
+        require(msg.sender == owner, "You must be the Owner");
+        _;
+    }
+
+    modifier isSCSafe() {
+        require(
+            msg.sender == votingAddress,
+            "You don't have permission to vote"
+        );
+        _;
+    }
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    function addVotingContract(address _votingAddress) public isOwner {
+        votingAddress = _votingAddress;
+    }
+
+    function showAllCanidates() public view returns (uint, Candidate[] memory) {
+        return (candidatesArr.length, candidatesArr);
+    }
+
+    function updateCandidateVote(uint8 _participantNumber) external isSCSafe {
+        candidates[_participantNumber].votes++;
+    }
+
+    function showCandidate(
+        uint8 _participantNumber
+    ) external view returns (Candidate memory) {
+        return (candidates[_participantNumber]);
     }
 
     function addCandidate(
@@ -144,7 +205,17 @@ contract Candidates {
         candidatesArr.pop();
     }
 
-    fallback() external payable {}
+    function calculateVotes() external isOwner {
+        for (uint i = 0; i < candidatesArr.length; i++) {
+            candidatesArr[i].votes = candidates[
+                candidatesArr[i].participantNumber
+            ].votes;
+        }
+    }
 
-    receive() external payable {}
+    receive() external payable {
+        payable(owner).transfer(msg.value); //why not
+    }
+
+    fallback() external payable {}
 }
