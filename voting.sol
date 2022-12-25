@@ -31,6 +31,14 @@ contract Voting {
         _;
     }
 
+    modifier isVoterNew(address _address) {
+        require(
+            voters[_address].age == 0,
+            "You have already registered as a voter"
+        );
+        _;
+    }
+
     constructor() {
         owner = msg.sender;
     }
@@ -43,7 +51,7 @@ contract Voting {
         string calldata _fullname,
         string calldata _identicalNumber,
         uint8 _age
-    ) external is18(_age) isZeroBalance {
+    ) external isVoterNew(msg.sender) is18(_age) isZeroBalance {
         voters[msg.sender] = Voter(_fullname, _identicalNumber, _age);
         votersArr.push(Voter(_fullname, _identicalNumber, _age));
     }
