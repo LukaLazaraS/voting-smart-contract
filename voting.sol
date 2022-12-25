@@ -67,6 +67,11 @@ contract Candidates {
         uint256 votes;
     }
 
+    modifier checkMaxCandidates() {
+        require(candidatesArr.length < maxCandidates, "Too many candidates");
+        _;
+    }
+
     modifier isOwner() {
         require(msg.sender == owner, "You must be the Owner");
         _;
@@ -76,19 +81,16 @@ contract Candidates {
         owner = msg.sender;
     }
 
+    function showAllCanidates() public view returns (uint, Candidate[] memory) {
+        return (candidatesArr.length, candidatesArr);
+    }
+
     function addCandidate(
         uint8 _participantNumber,
         uint256 _identicalNumber,
         string calldata _fullname,
         string calldata _slogan
-    ) external isOwner {
-        candidates[_participantNumber] = Candidate(
-            _participantNumber,
-            _identicalNumber,
-            _fullname,
-            _slogan,
-            0
-        );
+    ) external isOwner checkMaxCandidates {
         candidatesArr.push(
             Candidate(
                 _participantNumber,
@@ -98,6 +100,20 @@ contract Candidates {
                 0
             )
         );
+        candidates[_participantNumber] = Candidate(
+            _participantNumber,
+            _identicalNumber,
+            _fullname,
+            _slogan,
+            0
+        );
+    }
+
+    function deleteCandidate(uint8 index) external isOwner {
+        for (uint i = index; i < candidatesArr.length - 1; i++) {
+            candidatesArr[i] = candidatesArr[i + 1];
+        }
+        candidatesArr.pop();
     }
 
     fallback() external payable {}
