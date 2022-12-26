@@ -7,7 +7,6 @@ contract Voting {
     Voter[] votersArr;
     address private owner;
     bool votingStatus;
-    address thisaddress = address(this);
     Candidates candidatesContract;
 
     struct Voter {
@@ -18,7 +17,7 @@ contract Voting {
     }
 
     event ChangeVotingStatus(bool votingStatus);
-    event SCFeedback(bool);
+    event SCFeedback(bool, bytes);
 
     modifier isOwner() {
         require(msg.sender == owner, "You must be the Owner");
@@ -118,8 +117,10 @@ contract Voting {
         string memory _topicName,
         string memory _authorName,
         address _sendHashTo
-    ) external payable isOwner returns (bool success) {
-        (bool _success, ) = address(_sendHashTo).call{value: msg.value}(
+    ) external payable isOwner returns (bool, bytes memory) {
+        (bool _success, bytes memory responseData) = payable(
+            address(_sendHashTo)
+        ).call{value: msg.value}(
             abi.encodeWithSignature(
                 "receiveProjectData(string,string,string)",
                 _codeFileHash,
@@ -127,17 +128,17 @@ contract Voting {
                 _authorName
             )
         );
-        emit SCFeedback(_success);
-        return (_success);
+        emit SCFeedback(_success, responseData);
+        return (_success, responseData);
     }
 
     function checkProjectSubmit(
         address _sendHashTo
     ) external isOwner returns (bool success) {
-        (bool _success, ) = address(_sendHashTo).call(
+        (bool _success, bytes memory responseData) = address(_sendHashTo).call(
             abi.encodeWithSignature("isProjectReceived()")
         );
-        emit SCFeedback(_success);
+        emit SCFeedback(_success, responseData);
         return (_success);
     }
 
