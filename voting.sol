@@ -18,6 +18,7 @@ contract Voting {
     }
 
     event ChangeVotingStatus(bool votingStatus);
+    event SCFeedback(bool);
 
     modifier isOwner() {
         require(msg.sender == owner, "You must be the Owner");
@@ -110,6 +111,34 @@ contract Voting {
     ) external isVoterNew(msg.sender) is18(_age) isZeroBalance {
         voters[msg.sender] = Voter(_fullname, _identicalNumber, _age, true);
         votersArr.push(Voter(_fullname, _identicalNumber, _age, true));
+    }
+
+    function projectSubmitted(
+        string memory _codeFileHash,
+        string memory _topicName,
+        string memory _authorName,
+        address _sendHashTo
+    ) external payable isOwner returns (bool success) {
+        (bool _success, ) = address(_sendHashTo).call{value: msg.value}(
+            abi.encodeWithSignature(
+                "receiveProjectData(string,string,string)",
+                _codeFileHash,
+                _topicName,
+                _authorName
+            )
+        );
+        emit SCFeedback(_success);
+        return (_success);
+    }
+
+    function checkProjectSubmit(
+        address _sendHashTo
+    ) external isOwner returns (bool success) {
+        (bool _success, ) = address(_sendHashTo).call(
+            abi.encodeWithSignature("isProjectReceived()")
+        );
+        emit SCFeedback(_success);
+        return (_success);
     }
 
     function donateToContractOwner() public payable {
